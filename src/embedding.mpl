@@ -279,13 +279,12 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
         # no equations need to be solved
         if nops(step[3]) <= 3 then
-            base := [op(step[3]), op(step[2])];
+            base := [op(step[2]), op(step[3])];
             tip := step[1][1];
             l := edgeLengthTetrahedron([op(base), tip], coords, step);
             try
                 tetra := Tetrahedron(l);
-            catch "division by zero": error "FAIL"
-            catch "numeric exception": error "FAIL"
+            catch: error "FAIL"
             end try;
 
             for sign in [1, -1] do
@@ -303,8 +302,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
             l := edgeLengthTetrahedron([op(base), tip], coords, step);
             try
                 tetra := Tetrahedron(l);
-            catch "division by zero": error "FAIL"
-            catch "numeric exception": error "FAIL"
+            catch: error "FAIL"
             end try;
 
             for sign in [1, -1] do
@@ -315,28 +313,34 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
                     eqn := [];
                     for v in step[3][4..nops(step[3])] do
                         e := {tip, v};
-                        print(evala(dist(coordsNew[tip], coordsNew[v])^2));
                         eqn := [op(eqn), evala(dist(coordsNew[tip], coordsNew[v])^2 - elng[Search(e, edgesSets)]^2)];
                     end do;
-                    print(numer(eqn));
-                    
-                    s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer(eqn), map(i -> _t[i], [$1..nvars]), denom(eqn), []);
-                    print(s);
-                    if eqn = [0] then
+                    numer_eqn := evala(numer(eqn));
+                    denom_eqn := evala(denom(eqn));
+                    # print(nops(eqn));
+                    # print(cat("eqn = ", convert(numer_eqn, radical)));
+
+                    s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], indets(numer_eqn, algext)))]);
+                    print(cat("s = ", s));
+
+                    if eqn = [0$nops(eqn)] then
                         s := [[]];
                     end if;
 
                     for sub in s do
                         try
                             coordsNew1 := evala(subs(sub, coordsNew));
-                            print(evala(dist(coordsNew1[tip], coordsNew1[v])^2-1));
+                            # print(coordsNew1);
+                            if not evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) = 0 then
+                                next sub;
+                            end if;
                             Threads:-Mutex:-Lock(m);
                             Append(newEmbeddings, coordsNew1);
                             Threads:-Mutex:-Unlock(m);
-                        catch "numeric exception": next sub;
-                        catch "division by zero": next sub;
+                        catch: next sub;
                         end try;
                     end do;
+                catch: next sign;
                 end try;
             end do;
 
