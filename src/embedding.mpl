@@ -82,6 +82,20 @@ Tetrahedron := proc(l::list)
     return evala(convert([first, second, third, fourth], RootOf));
 end proc:
 
+# Tetrahedron := proc(l::list)
+#     a := l[1]:
+#     b := l[2]:
+#     c := l[3]:
+#     d := l[4]:
+#     e := l[5]:
+#     t := l[6]:
+
+#     tetra := evala([[0, 0, 0], [a, 0, 0], [1/2*(a^2-b^2+c^2)/a, 1/2*(-a^4+2*a^2*b^2+2*a^2*c^2-b^4+2*b^2*c^2-c^4)^(1/2)/a, 0], 
+#                     [1/2*(a^2+d^2-e^2)/a, 1/2*(-a^4+2*a^2*d^2+2*a^2*e^2-d^4+2*d^2*e^2-e^4)^(1/2)*(1/(a^4-a^2*b^2-a^2*c^2-a^2*d^2-a^2*e^2+2*a^2*t^2-b^2*d^2+b^2*e^2+c^2*d^2-c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))*(-a^4+a^2*b^2+a^2*c^2+a^2*d^2+a^2*e^2-2*a^2*t^2+b^2*d^2-b^2*e^2-c^2*d^2+c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))-1)/a/(1/(a^4-a^2*b^2-a^2*c^2-a^2*d^2-a^2*e^2+2*a^2*t^2-b^2*d^2+b^2*e^2+c^2*d^2-c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))*(-a^4+a^2*b^2+a^2*c^2+a^2*d^2+a^2*e^2-2*a^2*t^2+b^2*d^2-b^2*e^2-c^2*d^2+c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))+1), -(-a^4+2*a^2*d^2+2*a^2*e^2-d^4+2*d^2*e^2-e^4)^(1/2)/a/(a^4-a^2*b^2-a^2*c^2-a^2*d^2-a^2*e^2+2*a^2*t^2-b^2*d^2+b^2*e^2+c^2*d^2-c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))*((a^4-a^2*b^2-a^2*c^2-a^2*d^2-a^2*e^2+2*a^2*t^2-b^2*d^2+b^2*e^2+c^2*d^2-c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))*(-a^4+a^2*b^2+a^2*c^2+a^2*d^2+a^2*e^2-2*a^2*t^2+b^2*d^2-b^2*e^2-c^2*d^2+c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2)))^(1/2)/(1/(a^4-a^2*b^2-a^2*c^2-a^2*d^2-a^2*e^2+2*a^2*t^2-b^2*d^2+b^2*e^2+c^2*d^2-c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))*(-a^4+a^2*b^2+a^2*c^2+a^2*d^2+a^2*e^2-2*a^2*t^2+b^2*d^2-b^2*e^2-c^2*d^2+c^2*e^2+(-(a+b+c)*(a-b+c)*(b-c+a)*(-c+a-b))^(1/2)*(-(a+d+e)*(a-d+e)*(d-e+a)*(-e+a-d))^(1/2))+1)]]);
+
+#     return evala(convert(tetra, RootOf));
+# end proc:
+
 
 dofThroughVertex := proc(v, surf, S)
     local edgesToS;
@@ -261,7 +275,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     # embed first 4 vertices
     step := embeddingPlan[2];
-    base := [op(step[3]), op(step[2])];
+    base := [op(step[2]), op(step[3])];
     tip := step[1][1];
     l := edgeLengthTetrahedron([op(base), tip], embeddings[1], step);
     tetra := Tetrahedron(l);
@@ -275,13 +289,12 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     performStep := proc(step, coords, m)
         # proc to perform one step of the embeddingplan with starting embedding defined by coords
-        # global newEmbeddings;
 
         # no equations need to be solved
         if nops(step[3]) <= 3 then
             base := [op(step[2]), op(step[3])];
             tip := step[1][1];
-            l := edgeLengthTetrahedron([op(base), tip], coords, step);
+            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
             try
                 tetra := Tetrahedron(l);
             catch: error "FAIL"
@@ -299,7 +312,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
         elif nops(step[3]) > 3 then
             base := step[3][1..3];
             tip := step[1][1];
-            l := edgeLengthTetrahedron([op(base), tip], coords, step);
+            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
             try
                 tetra := Tetrahedron(l);
             catch: error "FAIL"
@@ -318,9 +331,15 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
                     numer_eqn := evala(numer(eqn));
                     denom_eqn := evala(denom(eqn));
                     # print(nops(eqn));
-                    # print(cat("eqn = ", convert(numer_eqn, radical)));
+                    print(cat("numer_eqn = ", numer_eqn));
+                    print(cat("denom_eqn = ", denom_eqn));
+                    # print(cat("extension = ", indets(numer_eqn, algext)));
+                    # rel, inv_su, v := `SimplicialSurfaceEmbeddings/defining_ideal_products`([op(map(expr -> [expr], indets(numer_eqn, algext)))]);
+                    ext := [op(indets(numer_eqn, algext))];
+                    ext := sort(ext, key = (expr -> nops(indets(expr, algext))));
+                    print(cat("ext = ", [op(map(expr -> [expr], ext))]));
 
-                    s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], indets(numer_eqn, algext)))]);
+                    s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], ext))]);
                     print(cat("s = ", s));
 
                     if eqn = [0$nops(eqn)] then
@@ -329,7 +348,9 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
                     for sub in s do
                         try
+                            # print(evala(Simplify~(subs(sub, coordsNew))));
                             coordsNew1 := evala(subs(sub, coordsNew));
+                            # print(evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) assuming real);
                             # print(coordsNew1);
                             if not evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) = 0 then
                                 next sub;
@@ -337,10 +358,10 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
                             Threads:-Mutex:-Lock(m);
                             Append(newEmbeddings, coordsNew1);
                             Threads:-Mutex:-Unlock(m);
-                        catch: next sub;
+                        # catch: next sub;
                         end try;
                     end do;
-                catch: next sign;
+                # catch: next sign;
                 end try;
             end do;
 
@@ -350,7 +371,10 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
     # other vertices
     for step in embeddingPlan[3..nops(embeddingPlan)] do
         print(step);
+        print(cat("number embeddings = ", nops(embeddings)));
         newEmbeddings := Array([]);
+        nvars := nvars + nops(step[2]);
+
         m := Threads:-Mutex:-Create();
 
         for coords in embeddings do
@@ -361,8 +385,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
         end do;
         # Threads:-Task:-Start(null, Task=[performStep, step, embeddings[1], m]);
         # Threads:-Task:-Start(null, map(coords -> Task=[performStep, step, coords, m], embeddings));
-        nvars := nvars + nops(step[2]);
-
+        
         embeddings := MakeUnique(convert(newEmbeddings, list));
     end do;
 
