@@ -155,8 +155,7 @@ EmbeddingPlan := proc(surf, recursionDepths := 1, startFace := [])
             undeterminedVerts := feasableVerts[[$(criticalIndex - 1)..nops(feasableVerts)]];
         end if;
         
-        Q := [op(determinedVerts), op(Q)];
-        Q := [op(Q), op(undeterminedVerts)];
+        Q := [op(determinedVerts), op(Q), op(undeterminedVerts)];
         
         # step 2: add first element of Q to S
         ASSERT(nops(Q) >= 1, "Q is empty, but not all elements of surf have been embedded.");
@@ -175,6 +174,15 @@ EmbeddingPlan := proc(surf, recursionDepths := 1, startFace := [])
 
         # step 4: remove first element of Q
         Q := subsop(1 = NULL, Q);
+
+        # step 5: pop first element of Q until the first is not in S
+        while Q[1] in S do
+            Q := subsop(1 = NULL, Q);
+
+            if Q = [] then 
+                return assemblyPlan
+            end if;
+        end do;
     end do;
 
 
