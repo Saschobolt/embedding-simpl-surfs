@@ -378,8 +378,8 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     # other vertices
     for step in embeddingPlan[3..nops(embeddingPlan)] do
-        print(step);
         print(cat("number embeddings = ", nops(embeddings)));
+        print(step);
         newEmbeddings := Array([]);
         nvars := nvars + nops(step[2]);
 
