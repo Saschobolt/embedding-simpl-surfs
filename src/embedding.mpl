@@ -238,6 +238,170 @@ MoveTetraBase := proc(coordinatesTriangle, coordinatesTetrahedron, sign := 1)
 end proc:
 
 
+###### Backup
+# FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
+#     # find all vertex faithful embeddings of the simplicial surface surf with edge lengths defined by elng.
+
+#     if nops(Vertices(surf)) = 3 then 
+#         return Triangle(elng);
+#     end if;
+
+#     if nops(Vertices(surf)) = 4 then 
+#         return Tetrahedron(elng);
+#     end if;
+
+#     edgesSets := map(e -> {op(e)}, Edges(surf)); # edges of surf as sets
+
+#     embeddingPlan := EmbeddingPlan(surf);
+#     nvars := 0; # aux variable to name variables
+
+#     embeddings := [[[0,0,0] $ nops(Vertices(surf))]]; # list of embedded vertex coordinates
+
+#     edgeLengthTetrahedron := proc(tetra::list, coords, step)
+#         # calculates the edge lengths that need to be passed to the Tetrahedron proc.
+#         # the tetrahedron is given through tetra: the first three entries are the indices of the base of the tetrahedron in Vertices(surf), the 4th is the tetrahedron tip. 
+#         local l := [0$6];
+#         local varsthisstep := nvars;
+#         for local enum in Enumerate([[tetra[1], tetra[2]], [tetra[2], tetra[3]], [tetra[3], tetra[1]], [tetra[1], tetra[4]], [tetra[2], tetra[4]], [tetra[3], tetra[4]]]) do
+#             local iter := enum[1];
+#             local e := enum[2];
+#             local edgeIndex := Search({op(e)}, edgesSets);
+            
+#             if edgeIndex = 0 then
+#                 if e[1] in [op(step[3]), op(step[2])] and e[2] in [op(step[3]), op(step[2])] then
+#                     l[iter] := dist(coords[e[1]], coords[e[2]]);
+#                 else
+#                     varsthisstep := varsthisstep + 1;
+#                     l[iter] := _t[varsthisstep];
+#                 end if;
+#             else
+#                 l[iter] := elng[edgeIndex];
+#             end if;
+#         end do;
+
+#         return l;
+#     end proc;
+
+#     # embed first 4 vertices
+#     step := embeddingPlan[2];
+#     base := [op(step[2]), op(step[3])];
+#     tip := step[1][1];
+#     l := edgeLengthTetrahedron([op(base), tip], embeddings[1], step);
+#     tetra := Tetrahedron(l);
+
+#     embeddings[1][base[1]] := tetra[1];
+#     embeddings[1][base[2]] := tetra[2];
+#     embeddings[1][base[3]] := tetra[3];
+#     embeddings[1][tip] := tetra[4];
+
+#     nvars := nvars + nops(step[2]);
+
+#     performStep := proc(step, coords, m)
+#         # proc to perform one step of the embeddingplan with starting embedding defined by coords
+
+#         # no equations need to be solved
+#         if nops(step[3]) <= 3 then
+#             base := [op(step[2]), op(step[3])];
+#             tip := step[1][1];
+#             l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
+#             try
+#                 tetra := Tetrahedron(l);
+#             catch: error "FAIL"
+#             end try;
+
+#             for sign in [1, -1] do
+#                 try
+#                     coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
+#                     Threads:-Mutex:-Lock(m);
+#                     Append(newEmbeddings, coordsNew);
+#                     Threads:-Mutex:-Unlock(m);
+#                 end try;
+#             end do;
+#         # need to solve equations
+#         elif nops(step[3]) > 3 then
+#             base := step[3][1..3];
+#             tip := step[1][1];
+#             l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
+#             try
+#                 tetra := Tetrahedron(l);
+#             catch: error "FAIL"
+#             end try;
+
+#             for sign in [1, -1] do
+#                 try
+#                     coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
+                    
+#                     # solve equations
+#                     eqn := [];
+#                     for v in step[3][4..nops(step[3])] do
+#                         e := {tip, v};
+#                         eqn := [op(eqn), evala(dist(coordsNew[tip], coordsNew[v])^2 - elng[Search(e, edgesSets)]^2)];
+#                     end do;
+#                     numer_eqn := evala(numer(eqn));
+#                     denom_eqn := evala(denom(eqn));
+#                     # print(nops(eqn));
+#                     print(cat("numer_eqn = ", numer_eqn));
+#                     print(cat("denom_eqn = ", denom_eqn));
+#                     # print(cat("extension = ", indets(numer_eqn, algext)));
+#                     # rel, inv_su, v := `SimplicialSurfaceEmbeddings/defining_ideal_products`([op(map(expr -> [expr], indets(numer_eqn, algext)))]);
+#                     ext := [op(indets(numer_eqn, algext))];
+#                     ext := sort(ext, key = (expr -> nops(indets(expr, algext))));
+#                     print(cat("ext = ", [op(map(expr -> [expr], ext))]));
+
+#                     s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], ext))]);
+#                     print(cat("s = ", s));
+
+#                     if eqn = [0$nops(eqn)] then
+#                         s := [[]];
+#                     end if;
+
+#                     for sub in s do
+#                         try
+#                             # print(evala(Simplify~(subs(sub, coordsNew))));
+#                             coordsNew1 := evala(subs(sub, coordsNew));
+#                             # print(evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) assuming real);
+#                             # print(coordsNew1);
+#                             if not evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) = 0 then
+#                                 next sub;
+#                             end if;
+#                             Threads:-Mutex:-Lock(m);
+#                             Append(newEmbeddings, coordsNew1);
+#                             Threads:-Mutex:-Unlock(m);
+#                         # catch: next sub;
+#                         end try;
+#                     end do;
+#                 # catch: next sign;
+#                 end try;
+#             end do;
+
+#         end if;
+#     end proc;
+
+#     # other vertices
+#     for step in embeddingPlan[3..nops(embeddingPlan)] do
+#         print(cat("number embeddings = ", nops(embeddings)));
+#         print(step);
+#         newEmbeddings := Array([]);
+#         nvars := nvars + nops(step[2]);
+
+#         m := Threads:-Mutex:-Create();
+
+#         for coords in embeddings do
+#             try
+#                 performStep(step, coords, m);
+#             catch "FAIL": next coords;
+#             end try;
+#         end do;
+#         # Threads:-Task:-Start(null, Task=[performStep, step, embeddings[1], m]);
+#         # Threads:-Task:-Start(null, map(coords -> Task=[performStep, step, coords, m], embeddings));
+        
+#         embeddings := MakeUnique(convert(newEmbeddings, list));
+#     end do;
+
+#     return embeddings
+# end proc:
+
+
 FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
     # find all vertex faithful embeddings of the simplicial surface surf with edge lengths defined by elng.
 
@@ -256,7 +420,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     embeddings := [[[0,0,0] $ nops(Vertices(surf))]]; # list of embedded vertex coordinates
 
-    edgeLengthTetrahedron := proc(tetra::list, coords, step)
+    edgeLengthTetrahedron := proc(tetra::list, coords, step, nvars)
         # calculates the edge lengths that need to be passed to the Tetrahedron proc.
         # the tetrahedron is given through tetra: the first three entries are the indices of the base of the tetrahedron in Vertices(surf), the 4th is the tetrahedron tip. 
         local l := [0$6];
@@ -285,7 +449,7 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
     step := embeddingPlan[2];
     base := [op(step[2]), op(step[3])];
     tip := step[1][1];
-    l := edgeLengthTetrahedron([op(base), tip], embeddings[1], step);
+    l := edgeLengthTetrahedron([op(base), tip], embeddings[1], step, nvars);
     tetra := Tetrahedron(l);
 
     embeddings[1][base[1]] := tetra[1];
@@ -295,84 +459,159 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     nvars := nvars + nops(step[2]);
 
-    performStep := proc(step, coords, m)
-        # proc to perform one step of the embeddingplan with starting embedding defined by coords
+    performStep := proc(step, coords, sign, nvars)
+        # proc to perform one step of the embeddingplan with starting embedding defined by coords; sign determines, in which half space the tip of the attached tetrahedron lies.
 
+        newEmbeddings := [];
+        
         # no equations need to be solved
         if nops(step[3]) <= 3 then
             base := [op(step[2]), op(step[3])];
             tip := step[1][1];
-            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
+            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step, nvars));
             try
                 tetra := Tetrahedron(l);
             catch: error "FAIL"
             end try;
 
-            for sign in [1, -1] do
-                try
-                    coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
-                    Threads:-Mutex:-Lock(m);
-                    Append(newEmbeddings, coordsNew);
-                    Threads:-Mutex:-Unlock(m);
-                end try;
-            end do;
+            try
+                coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
+                newEmbeddings := [op(newEmbeddings, coordsNew)];
+            end try;
+
         # need to solve equations
         elif nops(step[3]) > 3 then
             base := step[3][1..3];
             tip := step[1][1];
-            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step));
+            l := evala(edgeLengthTetrahedron([op(base), tip], coords, step, navrs));
             try
                 tetra := Tetrahedron(l);
             catch: error "FAIL"
             end try;
 
-            for sign in [1, -1] do
-                try
-                    coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
-                    
-                    # solve equations
-                    eqn := [];
-                    for v in step[3][4..nops(step[3])] do
-                        e := {tip, v};
-                        eqn := [op(eqn), evala(dist(coordsNew[tip], coordsNew[v])^2 - elng[Search(e, edgesSets)]^2)];
-                    end do;
-                    numer_eqn := evala(numer(eqn));
-                    denom_eqn := evala(denom(eqn));
-                    # print(nops(eqn));
-                    print(cat("numer_eqn = ", numer_eqn));
-                    print(cat("denom_eqn = ", denom_eqn));
-                    # print(cat("extension = ", indets(numer_eqn, algext)));
-                    # rel, inv_su, v := `SimplicialSurfaceEmbeddings/defining_ideal_products`([op(map(expr -> [expr], indets(numer_eqn, algext)))]);
-                    ext := [op(indets(numer_eqn, algext))];
-                    ext := sort(ext, key = (expr -> nops(indets(expr, algext))));
-                    print(cat("ext = ", [op(map(expr -> [expr], ext))]));
+            try
+                coordsNew := evala(subsop(tip = MoveTetraBase(map(v -> coords[v], base), tetra, sign)[4], coords));
+                
+                # solve equations
+                eqn := [];
+                for v in step[3][4..nops(step[3])] do
+                    e := {tip, v};
+                    eqn := [op(eqn), evala(dist(coordsNew[tip], coordsNew[v])^2 - elng[Search(e, edgesSets)]^2)];
+                end do;
+                numer_eqn := evala(numer(eqn));
+                denom_eqn := evala(denom(eqn));
+                # print(nops(eqn));
+                # print(cat("numer_eqn = ", numer_eqn));
+                # print(cat("denom_eqn = ", denom_eqn));
+                # print(cat("extension = ", indets(numer_eqn, algext)));
+                # rel, inv_su, v := `SimplicialSurfaceEmbeddings/defining_ideal_products`([op(map(expr -> [expr], indets(numer_eqn, algext)))]);
+                ext := [op(indets(numer_eqn, algext))];
+                ext := sort(ext, key = (expr -> nops(indets(expr, algext))));
+                # print(cat("ext = ", [op(map(expr -> [expr], ext))]));
 
-                    s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], ext))]);
-                    print(cat("s = ", s));
+                s, u := `SimplicialSurfaceEmbeddings/solve_polynomial_system`(numer_eqn, map(i -> _t[i], [$1..nvars]), denom_eqn, [op(map(expr -> [expr], ext))]);
+                # print(cat("s = ", s));
 
-                    if eqn = [0$nops(eqn)] then
-                        s := [[]];
-                    end if;
+                if eqn = [0$nops(eqn)] then
+                    s := [[]];
+                end if;
 
-                    for sub in s do
-                        try
-                            # print(evala(Simplify~(subs(sub, coordsNew))));
-                            coordsNew1 := evala(subs(sub, coordsNew));
-                            # print(evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) assuming real);
-                            # print(coordsNew1);
-                            if not evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) = 0 then
-                                next sub;
-                            end if;
-                            Threads:-Mutex:-Lock(m);
-                            Append(newEmbeddings, coordsNew1);
-                            Threads:-Mutex:-Unlock(m);
-                        # catch: next sub;
-                        end try;
-                    end do;
-                # catch: next sign;
-                end try;
+                for sub in s do
+                    try
+                        # print(evala(Simplify~(subs(sub, coordsNew))));
+                        coordsNew1 := evala(subs(sub, coordsNew));
+                        # print(evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) assuming real);
+                        # print(coordsNew1);
+                        if not evala(dist(coordsNew1[tip], coordsNew1[v])^2 - elng[Search(e, edgesSets)]^2) = 0 then
+                            next sub;
+                        end if;
+                        newEmbeddings := [op(newEmbeddings), coordsNew1];
+                    # catch: next sub;
+                    end try;
+                end do;
+            # catch: next sign;
+            end try;
+
+        end if;
+
+        return newEmbeddings;
+    end proc;
+
+    local Server := proc(step, embeddings, nvars)
+        # task server for grid parallel programming. https://de.maplesoft.com/support/help/maple/view.aspx?path=ProgrammingGuide/Chapter15
+        local msg;
+
+        global updatedEmbeddings := [];
+
+        for local coordinates in embeddings do
+            for local sign in [1,-1] do
+                # get a work request
+                msg := Grid:-Receive();
+                i := msg[1];
+                # send out work
+                Grid:-Send(i, [step, coordinates, sign, nvars]);
+
+                # if we receive new embeddings, store them
+                if msg[2] <> [] then
+                    updatedEmbeddings := [op(updatedEmbeddings), op(msg[2])];
+                end if;
             end do;
+        end do;
 
+        # all data has been sent. Receive last messages
+        for i from 1 to Grid:-NumNodes()-1 do
+            msg := Grid:-Receive();
+            if msg[2] <> [] then
+                    updatedEmbeddings := [op(updatedEmbeddings), op(msg[2])];
+            end if;
+        end do;
+
+        # send terminate message to the nodes
+        for i from 1 to Grid:-NumNodes()-1 do
+            Grid:-Send(i, -1);
+        end do;
+
+        return updatedEmbeddings;
+    end proc;
+
+    local Client := proc(i)
+        # send initial data request
+        Grid:-Send(0, [i, []]);
+
+        do
+            # wait for reply
+            printf("Node %d of %d is waiting for reply.\n", i, Grid:-NumNodes());
+            local msg := Grid:-Receive(0);
+
+            # if terminate message, exit the loop
+            if msg = -1 then 
+                break;
+            end if;
+
+            # perform the step given the parameters in msg
+            printf("Node %d of %d is performing calculations.\n", i, Grid:-NumNodes());
+            local step := msg[1];
+            local coordinates := msg[2];
+            local sign := msg[3];
+            local nvars := msg[4];
+
+            local newEmbeddings := performStep(step, coordinates, sign, nvars);
+
+            # send solution 
+            Grid:-Send(0, [i, newEmbeddings]);
+        end do;
+
+        return NULL
+    end proc;
+
+    local GridFunction := proc()
+        with(SimplicialSurfaceEmbeddings):
+        local i := Grid:-MyNode();
+
+        if i = 0 then
+            Server(step, embeddings, nvars);
+        else
+            Client(i);
         end if;
     end proc;
 
@@ -380,21 +619,14 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
     for step in embeddingPlan[3..nops(embeddingPlan)] do
         print(cat("number embeddings = ", nops(embeddings)));
         print(step);
-        newEmbeddings := Array([]);
         nvars := nvars + nops(step[2]);
 
-        m := Threads:-Mutex:-Create();
-
-        for coords in embeddings do
-            try
-                performStep(step, coords, m);
-            catch "FAIL": next coords;
-            end try;
-        end do;
-        # Threads:-Task:-Start(null, Task=[performStep, step, embeddings[1], m]);
-        # Threads:-Task:-Start(null, map(coords -> Task=[performStep, step, coords, m], embeddings));
-        
-        embeddings := MakeUnique(convert(newEmbeddings, list));
+        updatedEmbeddings := Grid:-Launch(GridFunction, 
+                    numnodes=min(13, nops(embeddings)*2), 
+                    imports=['performStep', 'Server', 'Client', 'Tetrahedron', 'MoveTetraBase', 'edgeLengthTetrahedron', 'dist', 
+                            'edgesSets', 'step', 'embeddings', 'nvars']);
+                            
+        embeddings := MakeUnique(updatedEmbeddings, infinity);
     end do;
 
     return embeddings
