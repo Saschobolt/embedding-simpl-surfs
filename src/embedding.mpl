@@ -2,6 +2,7 @@ with(ListTools):
 with(ArrayTools):
 with(SimplicialSurfaceEmbeddings):
 with(combinat):
+with(CodeGeneration):
 
 dist := proc(v,w)
     # aux function that returns the distance of the lists v and w as vectors
@@ -402,7 +403,7 @@ end proc:
 # end proc:
 
 
-FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
+FindEmbeddings := proc(surf, recursionDepth := 1, elng::list := [1$nops(Edges(surf))])
     # find all vertex faithful embeddings of the simplicial surface surf with edge lengths defined by elng.
 
     if nops(Vertices(surf)) = 3 then 
@@ -415,7 +416,8 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
 
     edgesSets := map(e -> {op(e)}, Edges(surf)); # edges of surf as sets
 
-    embeddingPlan := EmbeddingPlan(surf);
+    embeddingPlan := EmbeddingPlan(surf, recursionDepth);
+    print(embeddingPlan);
     nvars := 0; # aux variable to name variables
 
     embeddings := [[[0,0,0] $ nops(Vertices(surf))]]; # list of embedded vertex coordinates
@@ -558,16 +560,15 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
             end do;
         end do;
 
+        # print("all data has been sent");
         # all data has been sent. Receive last messages
-        for i from 1 to Grid:-NumNodes()-1 do
+        for j from 1 to Grid:-NumNodes()-1 do
             msg := Grid:-Receive();
             if msg[2] <> [] then
                     updatedEmbeddings := [op(updatedEmbeddings), op(msg[2])];
             end if;
-        end do;
-
-        # send terminate message to the nodes
-        for i from 1 to Grid:-NumNodes()-1 do
+            # send terminate message to the nodes
+            i := msg[1];
             Grid:-Send(i, -1);
         end do;
 
@@ -575,30 +576,37 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
     end proc;
 
     local Client := proc(i)
+        local newEmbeddings;
         # send initial data request
         Grid:-Send(0, [i, []]);
 
         do
             # wait for reply
-            printf("Node %d of %d is waiting for reply.\n", i, Grid:-NumNodes());
+            # printf("Node %d of %d is waiting for reply.\n", i, Grid:-NumNodes()-1);
             local msg := Grid:-Receive(0);
 
             # if terminate message, exit the loop
             if msg = -1 then 
+                # printf("Shutting down Node %d of %d.\n", i, Grid:-NumNodes()-1);
                 break;
             end if;
 
             # perform the step given the parameters in msg
-            printf("Node %d of %d is performing calculations.\n", i, Grid:-NumNodes());
+            # printf("Node %d of %d is performing calculations.\n", i, Grid:-NumNodes()-1);
             local step := msg[1];
             local coordinates := msg[2];
             local sign := msg[3];
             local nvars := msg[4];
 
-            local newEmbeddings := performStep(step, coordinates, sign, nvars);
+            try
+                newEmbeddings := performStep(step, coordinates, sign, nvars);
+            catch: 
+                newEmbeddings := [];
+            end try;
 
             # send solution 
             Grid:-Send(0, [i, newEmbeddings]);
+            # printf("Node %d of %d sent results.\n", i, Grid:-NumNodes()-1);
         end do;
 
         return NULL
@@ -622,11 +630,14 @@ FindEmbeddings := proc(surf, elng::list := [1$nops(Edges(surf))])
         nvars := nvars + nops(step[2]);
 
         updatedEmbeddings := Grid:-Launch(GridFunction, 
-                    numnodes=min(13, nops(embeddings)*2), 
+                    numnodes=min(13, nops(embeddings)*2+1), 
                     imports=['performStep', 'Server', 'Client', 'Tetrahedron', 'MoveTetraBase', 'edgeLengthTetrahedron', 'dist', 
                             'edgesSets', 'step', 'embeddings', 'nvars']);
                             
-        embeddings := MakeUnique(updatedEmbeddings, infinity);
+        embeddings := MakeUnique(updatedEmbeddings);
+        if nops(embeddings) = 0 then
+            return []
+        end if;
     end do;
 
     return embeddings
