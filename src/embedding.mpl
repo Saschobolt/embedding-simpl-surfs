@@ -1,3 +1,7 @@
+################################################################
+# Deprecated. Use methods in findembeddings.mpl
+################################################################
+
 with(ListTools):
 with(ArrayTools):
 with(SimplicialSurfaceEmbeddings):
